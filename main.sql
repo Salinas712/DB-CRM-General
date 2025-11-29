@@ -1,16 +1,24 @@
 Create DATABASE CRM_General;
-USE CRM_General;
 
 -- ENUMS
 CREATE TYPE User_Status_Enum AS ENUM ('ACTIVE', 'INACTIVE', 'VERIFYING', 'BANNED');
 CREATE TYPE User_Type_Enum AS ENUM ('USER', 'ADMIN', 'STAFF', 'MANAGER', 'OWNER', 'GUEST', 'RECEPTION', 'SUPPLIERS');
-CREATE TYPE Assets_Type_Enum AS ENUM ('USER', 'ENTITY', 'SERVICE'); -- INVESTIGAR MAS TIPOS
+CREATE TYPE Assets_Type_Enum AS ENUM ('USER', 'ENTITY', 'SERVICE', 'PRODUCT');
 CREATE TYPE Change_Inventory_Type_Enum AS ENUM ('ADD', 'REMOVE', 'ADJUST');
 CREATE TYPE Appointment_Enum AS ENUM ('SCHEDULED','ACEPTED','ARRIVING','WAITING','IN-PROCESS','COMPLETED','CANCELLED');
 
 -- TABLES --------
 
 -- Users Tables
+
+CREATE TABLE USER_TYPE (
+    Id_User_Type    SERIAL PRIMARY KEY NOT NULL,
+    Name_Type       User_Type_Enum DEFAULT 'USER',
+    Description     TEXT,
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Status          BOOLEAN DEFAULT TRUE
+);
 
 CREATE TABLE USERS(
     Id_User         UUID DEFAULT gen_random_uuid() PRIMARY KEY NOT NULL,
@@ -30,7 +38,7 @@ CREATE TABLE USERS(
     User_Verified   BOOLEAN DEFAULT TRUE,
     Status          User_Status_Enum DEFAULT 'ACTIVE',
     Image_URL       VARCHAR(255),
-    FOREIGN KEY     (Id_User_Type_f) REFERENCES User_Type(Id_User_Type),
+    Id_User_Type_f  INT REFERENCES User_Type(Id_User_Type),
 );
 
 CREATE TABLE USER_REVIEWS (
@@ -39,17 +47,8 @@ CREATE TABLE USER_REVIEWS (
     Comment         TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Reviewer_f) REFERENCES USERS(Id_User)
-);
-
-CREATE TABLE USER_TYPE (
-    Id_User_Type    INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
-    Name_Type       User_Type_Enum DEFAULT 'USER',
-    Description     TEXT,
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status          BOOLEAN DEFAULT TRUE
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Reviewer_f   UUID REFERENCES USERS(Id_User)
 );
 
 CREATE TABLE USER_PERMISSIONS (
@@ -59,11 +58,11 @@ CREATE TABLE USER_PERMISSIONS (
     Can_Read        BOOLEAN DEFAULT TRUE,
     Can_Update      BOOLEAN DEFAULT TRUE,
     Can_Delete      BOOLEAN DEFAULT TRUE,
-    Description     TEXT,-
+    Description     TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_User_Type_f) REFERENCES USER_TYPE(Id_User_Type)
+    Id_User_Type_f  INT REFERENCES USER_TYPE(Id_User_Type)
 );
 
 CREATE TABLE REWARDS (
@@ -72,7 +71,70 @@ CREATE TABLE REWARDS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User)
+    Id_User_f       UUID REFERENCES USERS(Id_User)
+);
+
+-- Services Tables
+
+CREATE TABLE SERVICE_CATEGORY (
+    Id_Service_Cat  SERIAL PRIMARY KEY NOT NULL,
+    Name_Category   VARCHAR(100),
+    Description     TEXT,
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Status          BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE SERVICES (
+    Id_Service      UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    Name_Service    VARCHAR(100) NOT NULL,
+    Description     TEXT,
+    Duration_Min    INT DEFAULT 0,
+    Price           DECIMAL(10, 2),
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Image_URL       VARCHAR(255),
+    Status          BOOLEAN DEFAULT TRUE,
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity),
+    Id_Category_f   INT REFERENCES SERVICE_CATEGORY(Id_Service_Cat)
+);
+
+
+CREATE TABLE SERVICE_REVIEWS (
+    Id_Review       UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    Rating          INT DEFAULT 0,
+    Comment         TEXT,
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Service_f    UUID REFERENCES SERVICES(Id_Service)
+);
+
+CREATE TABLE SERVICE_PHOTOS (
+    Id_Photo        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    Photo_URL       VARCHAR(255),
+    Classification  Assets_Type_Enum DEFAULT 'SERVICE',
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Status          BOOLEAN DEFAULT TRUE,
+    Id_Service_f    UUID REFERENCES SERVICES(Id_Service)
+);
+
+CREATE TABLE SERVICE_PROMOTIONS (
+    Id_Promotion    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    Promo_Code      VARCHAR(50), --AUTO GENERATE IN FRONTEND
+    Name_Promotion  VARCHAR(100),
+    Description     TEXT,
+    URL_Image       VARCHAR(255),
+    Use_Limit       INT DEFAULT 0,
+    Discount_Per    DECIMAL(5, 2),
+    Start_Date      TIMESTAMP,
+    End_Date        TIMESTAMP,
+    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    Status          BOOLEAN DEFAULT TRUE,
+    Id_Service_f    UUID REFERENCES SERVICES(Id_Service),
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 -- Entity Tables
@@ -93,7 +155,7 @@ CREATE TABLE ENTITYS (
     TikTok_Link	    VARCHAR(100),	
     Image_URL       VARCHAR(255),
     IsOpen          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Owner_f) REFERENCES USERS(Id_User)
+    Id_Owner_f      UUID REFERENCES USERS(Id_User)
 );
 
 CREATE TABLE ENTITY_REVIEWS (
@@ -102,8 +164,8 @@ CREATE TABLE ENTITY_REVIEWS (
     Comment         TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 CREATE TABLE ENTITY_STAFF (
@@ -112,8 +174,8 @@ CREATE TABLE ENTITY_STAFF (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 CREATE TABLE ENTITY_SERVICES (
@@ -121,8 +183,8 @@ CREATE TABLE ENTITY_SERVICES (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity),
-    FOREIGN KEY (Id_Service_f) REFERENCES SERVICES(Id_Service)
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity),
+    Id_Service_f    UUID REFERENCES SERVICES(Id_Service)
 );
 
 CREATE TABLE ENTITY_TIMINGS (
@@ -133,7 +195,7 @@ CREATE TABLE ENTITY_TIMINGS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 CREATE TABLE ENTITY_PHOTOS (
@@ -143,11 +205,11 @@ CREATE TABLE ENTITY_PHOTOS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 CREATE TABLE BILL_CATEGORY (
-    Id_Bill_Cat     INT PRIMARY KEY AUTO_INCREMENT,
+    Id_Bill_Cat     SERIAL PRIMARY KEY NOT NULL,
     Name_Category   VARCHAR(100),
     Description     TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -156,7 +218,7 @@ CREATE TABLE BILL_CATEGORY (
 );
 
 CREATE TABLE BILLS (
-    Id_Bill         INT PRIMARY KEY AUTO_INCREMENT,
+    Id_Bill         SERIAL PRIMARY KEY NOT NULL,
     Name            VARCHAR(100) NOT NULL,
     Description     TEXT,
     Amount          DECIMAL(10, 2),
@@ -168,71 +230,10 @@ CREATE TABLE BILLS (
     Reference_Id    VARCHAR(100),
     Notes           TEXT,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
-    FOREIGN KEY (Id_Category_f) REFERENCES BILL_CATEGORY(Id_Bill_Cat)
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity),
+    Id_Category_f   INT REFERENCES BILL_CATEGORY(Id_Bill_Cat)
 );
 
--- Services Tables
-
-CREATE TABLE SERVICES (
-    Id_Service      UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    Name_Service    VARCHAR(100) NOT NULL,
-    Description     TEXT,
-    Duration_Min    INT DEFAULT 0,
-    Price           DECIMAL(10, 2),
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Image_URL       VARCHAR(255),
-    Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
-    FOREIGN KEY (Id_Category_f) REFERENCES SERVICE_CATEGORY(Id_Service_Cat)
-);
-
-CREATE TABLE SERVICE_CATEGORY (
-    Id_Service_Cat  INT PRIMARY KEY AUTO_INCREMENT,
-    Name_Category   VARCHAR(100),
-    Description     TEXT,
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status          BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE SERVICE_REVIEWS (
-    Id_Review       UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    Rating          INT DEFAULT 0,
-    Comment         TEXT,
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Service_f) REFERENCES SERVICES(Id_Service)
-);
-
-CREATE TABLE SERVICE_PHOTOS (
-    Id_Photo        UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    Photo_URL       VARCHAR(255),
-    Classification  Assets_Type_Enum DEFAULT 'SERVICE',
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Service_f) REFERENCES SERVICES(Id_Service)
-);
-
-CREATE TABLE SERVICE_PROMOTIONS (
-    Id_Promotion    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    Promo_Code      VARCHAR(50), --AUTO GENERATE IN FRONTEND
-    Name_Promotion  VARCHAR(100),
-    Description     TEXT,
-    URL_Image       VARCHAR(255),
-    Use_Limit       INT DEFAULT 0,
-    Discount_Per    DECIMAL(5, 2),
-    Start_Date      TIMESTAMP,
-    End_Date        TIMESTAMP,
-    CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Service_f) REFERENCES SERVICES(Id_Service)
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
-);
 
 -- Products Tables
 
@@ -246,8 +247,8 @@ CREATE TABLE PRODUCTS (
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Image_URL       VARCHAR(255),
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
-    FOREIGN KEY (Id_Category_f) REFERENCES PRODUCT_CATEGORY(Id_Product_Cat)
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity),
+    Id_Category_f   INT REFERENCES PRODUCT_CATEGORY(Id_Product_Cat)
 );
 
 CREATE TABLE PRODUCT_PHOTOS (
@@ -257,7 +258,7 @@ CREATE TABLE PRODUCT_PHOTOS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Product_f) REFERENCES PRODUCTS(Id_Product)
+    Id_Product_f    UUID REFERENCES PRODUCTS(Id_Product)
 );
 
 CREATE TABLE PRODUCT_REVIEWS (
@@ -266,12 +267,12 @@ CREATE TABLE PRODUCT_REVIEWS (
     Comment         TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Product_f) REFERENCES PRODUCTS(Id_Product)
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Product_f    UUID REFERENCES PRODUCTS(Id_Product)
 );
 
 CREATE TABLE PRODUCT_CATEGORY (
-    Id_Product_Cat  INT PRIMARY KEY AUTO_INCREMENT,
+    Id_Product_Cat  SERIAL PRIMARY KEY NOT NULL,
     Name_Category   VARCHAR(100),
     Description     TEXT,
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -284,8 +285,8 @@ CREATE Table PRODUCT_INVENTORY_LOGS (
     Change_Quantity INT,
     Change_Type     Change_Inventory_Type_Enum DEFAULT 'ADJUST',
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (Id_Product_f) REFERENCES PRODUCTS(Id_Product),
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User)
+    Id_Product_f    UUID REFERENCES PRODUCTS(Id_Product),
+    Id_User_f       UUID REFERENCES USERS(Id_User)
 );
 
 CREATE TABLE SUPPLIERS (
@@ -311,10 +312,10 @@ CREATE TABLE APPOINTMENTS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          VARCHAR(50) DEFAULT 'SCHEDULED',
-    FOREIGN KEY (Id_User_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Staff_f) REFERENCES USERS(Id_User),
-    FOREIGN KEY (Id_Service_f) REFERENCES SERVICES(Id_Service),
-    FOREIGN KEY (Id_Entity_f) REFERENCES ENTITYS(Id_Entity)
+    Id_User_f       UUID REFERENCES USERS(Id_User),
+    Id_Staff_f      UUID REFERENCES USERS(Id_User),
+    Id_Service_f    UUID REFERENCES SERVICES(Id_Service),
+    Id_Entity_f     UUID REFERENCES ENTITYS(Id_Entity)
 );
 
 CREATE TABLE APPOINTMENT_PHOTOS (
@@ -324,7 +325,7 @@ CREATE TABLE APPOINTMENT_PHOTOS (
     CreatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt	    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     Status          BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (Id_Appointment_f) REFERENCES APPOINTMENTS(Id_Appointment)
+    Id_Appt_f       UUID REFERENCES APPOINTMENTS(Id_Appointment)
 );
 
 
